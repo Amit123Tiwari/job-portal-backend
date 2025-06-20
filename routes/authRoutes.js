@@ -12,7 +12,7 @@ const router = express.Router(); // create express router
 // ✅ POST /api/register - Register a new user
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, phone, password, role } = req.body;
 
     // ✅ POST /api/login - Login user
 router.post('/login', async (req, res) => {
@@ -55,6 +55,7 @@ router.post('/login', async (req, res) => {
     const newUser = new User({
       name,
       email,
+      phone,
       password: hashedPassword,
       role
     });

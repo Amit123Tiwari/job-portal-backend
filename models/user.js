@@ -22,6 +22,9 @@ const userSchema = new mongoose.Schema({
     enum: ['worker', 'employer', 'admin'], // only these 3 values allowed
     default: 'worker'
   },
+   phone: { 
+    type: String, required: true
+   },
   createdAt: {
     type: Date,
     default: Date.now // automatically adds current date

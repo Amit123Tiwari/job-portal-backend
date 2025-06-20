@@ -1,18 +1,14 @@
-// routes/jobRoutes.js
-
 const express = require('express');
 const router = express.Router();
 const Job = require('../models/Job');
-const authMiddleware = require('../middleware/authMiddleware');
 const Application = require('../models/Application');
-
+const authMiddleware = require('../middleware/authMiddleware');
 
 // ✅ POST /api/post-job - Only for logged-in employers
 router.post('/post-job', authMiddleware, async (req, res) => {
   try {
     const { title, description, location, salary } = req.body;
 
-    // Only employers can post jobs
     if (req.user.role !== 'employer') {
       return res.status(403).json({ message: 'Only employers can post jobs' });
     }
@@ -37,8 +33,8 @@ router.post('/post-job', authMiddleware, async (req, res) => {
 router.get('/jobs', async (req, res) => {
   try {
     const jobs = await Job.find()
-      .populate('postedBy', 'name email') // include employer name/email
-      .sort({ createdAt: -1 }); // newest first
+      .populate('postedBy', 'name email phone')
+      .sort({ createdAt: -1 });
 
     res.status(200).json(jobs);
   } catch (error) {
@@ -47,35 +43,53 @@ router.get('/jobs', async (req, res) => {
   }
 });
 
-// ✅ GET /api/my-jobs - Employers can view their posted jobs
+// ✅ GET /api/my-jobs - Employers view their posted jobs
 router.get('/my-jobs', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'employer') {
+    return res.status(403).json({ message: 'Only employers can view their jobs' });
+  }
+
   try {
-    // Only allow employers to access this route
-    if (req.user.role !== 'employer') {
-      return res.status(403).json({ message: 'Only employers can view their jobs' });
-    }
-
-    // Find jobs where "postedBy" is the logged-in employer
-    const myJobs = await Job.find({ postedBy: req.user.userId }).sort({ createdAt: -1 });
-
-    res.status(200).json(myJobs);
+    const jobs = await Job.find({ postedBy: req.user.userId });
+    res.status(200).json(jobs);
   } catch (error) {
-    console.error('Error fetching employer jobs:', error);
+    console.error('Error fetching jobs:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
-// ✅ POST /api/apply-job - Only workers can apply to jobs
+// ✅ DELETE /api/my-job/:id - Employers delete their own jobs
+router.delete('/my-job/:id', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'employer') {
+    return res.status(403).json({ message: 'Only employers can delete jobs' });
+  }
+
+  try {
+    const job = await Job.findOneAndDelete({
+      _id: req.params.id,
+      postedBy: req.user.userId
+    });
+
+    if (!job) {
+      return res.status(404).json({ message: 'Job not found or unauthorized' });
+    }
+
+    res.json({ message: 'Job deleted successfully' });
+  } catch (error) {
+    console.error('Employer delete job error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ✅ POST /api/apply-job - Workers apply to jobs
 router.post('/apply-job', authMiddleware, async (req, res) => {
   try {
     const { jobId } = req.body;
 
-    // Only workers can apply
     if (req.user.role !== 'worker') {
-      return res.status(403).json({ message: 'Only workers can apply to jobs' });
+      return res.status(403).json({ message: 'Only workers can apply' });
     }
 
-    // Check if already applied
     const alreadyApplied = await Application.findOne({
       job: jobId,
       applicant: req.user.userId
@@ -85,7 +99,6 @@ router.post('/apply-job', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'You have already applied to this job' });
     }
 
-    // Create application
     const application = new Application({
       job: jobId,
       applicant: req.user.userId
@@ -93,47 +106,38 @@ router.post('/apply-job', authMiddleware, async (req, res) => {
 
     await application.save();
 
-    res.status(201).json({ message: 'Application submitted successfully', application });
+    res.status(201).json({ message: 'Application submitted successfully' });
   } catch (error) {
     console.error('Error in /apply-job:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
-// ✅ GET /api/job-applicants/:jobId - Only employer who posted can view
+
+// ✅ GET /api/job-applicants/:jobId - Employers view applicants to their jobs
 router.get('/job-applicants/:jobId', authMiddleware, async (req, res) => {
   try {
-    const jobId = req.params.jobId;
-
-    // 1. Only employers can use this route
     if (req.user.role !== 'employer') {
       return res.status(403).json({ message: 'Only employers can view applicants' });
     }
 
-    // 2. Check if the job belongs to the logged-in employer
-    const job = await Job.findById(jobId);
-    if (!job) {
-      return res.status(404).json({ message: 'Job not found' });
+    const job = await Job.findById(req.params.jobId);
+
+    if (!job || job.postedBy.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Not authorized to view applicants for this job' });
     }
 
-    if (job.postedBy.toString() !== req.user.userId) {
-      return res.status(403).json({ message: 'You are not allowed to view applicants for this job' });
-    }
-
-    // 3. Find all applications for the job
-    const applications = await Application.find({ job: jobId }).populate('applicant', 'name email');
+    const applications = await Application.find({ job: req.params.jobId })
+      .populate('applicant', 'name email phone');
 
     res.status(200).json({
       jobTitle: job.title,
       totalApplicants: applications.length,
-      applicants: applications.map(app => app.applicant)
+      applicants: applications.map((app) => app.applicant)
     });
   } catch (error) {
     console.error('Error fetching applicants:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
-
-
-
 
 module.exports = router;
