@@ -1,6 +1,7 @@
 // middleware/authMiddleware.js
 
 const jwt = require('jsonwebtoken');
+console.log("Incoming Auth Header:", req.headers.authorization);
 
 const authMiddleware = (req, res, next) => {
   try {

@@ -53,9 +53,10 @@ router.get('/my-jobs', authMiddleware, async (req, res) => {
     const jobs = await Job.find({ postedBy: req.user.userId });
     res.status(200).json(jobs);
   } catch (error) {
-    console.error('Error fetching jobs:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
+  console.error('❌ Error in /my-jobs route:', error.message);
+  res.status(500).json({ message: 'Server error', error: error.message });
+}
+
 });
 
 // ✅ DELETE /api/my-job/:id - Employers delete their own jobs
