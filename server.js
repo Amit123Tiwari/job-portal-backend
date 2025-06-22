@@ -1,4 +1,4 @@
-// server.js
+// server.js ✅ FINAL VERSION
 
 const express = require('express');
 const mongoose = require('mongoose');
@@ -8,41 +8,26 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ✅ Step 1: Allowed frontend origins (for CORS)
-const allowedOrigins = [
-  'http://localhost:3000', // for local development
-  'https://job-portal-frontend-bice.vercel.app' // ✅ your Vercel domain
-];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
-}));
-
-// ✅ Step 2: Body parser
+// ✅ Middlewares
+app.use(cors());
 app.use(express.json());
 
-// ✅ Step 3: Import and use your routes
+// ✅ Import Routes
 const authRoutes = require('./routes/authRoutes');
 const jobRoutes = require('./routes/jobRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 
-app.use('/api', authRoutes);
-app.use('/api', jobRoutes);
-app.use('/api', adminRoutes);
+// ✅ Mount Routes
+app.use('/api', authRoutes);               // e.g. /api/register, /api/login
+app.use('/api', jobRoutes);                // e.g. /api/post-job, /api/my-jobs
+app.use('/api/admin', adminRoutes);        // e.g. /api/admin/users, /api/admin/jobs
 
-// ✅ Step 4: Test route
+// ✅ Test route
 app.get('/', (req, res) => {
-  res.send('✅ Hello from Job Portal Backend!');
+  res.send('✅ Job Portal Backend is live!');
 });
 
-// ✅ Step 5: MongoDB Connection
+// ✅ Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ Connected to MongoDB');
